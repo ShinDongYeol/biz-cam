@@ -1,0 +1,10 @@
+spring:
+  mvc:
+    view:
+      prefix: /WEB-INF/view/
+      suffix: .jsp
+  profiles:
+    active: local
+mybatis:
+  type-aliases-package: ai.maum.biz.cams.mapper, ai.maum.biz.cams.vo, ai.maum.biz.cams.dto
+  mapper-locations: mybatis/mapper/**/*.xml

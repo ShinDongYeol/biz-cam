@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ai.maum.biz.cams.mapper.SiteMapper">
+
+    <select id="getSiteListCnt" parameterType="mngSiteVO" resultType="int">
+
+      select count(minutes_site_ser) as cnt
+      from MINUTES_SITE
+      where 1 = 1
+        and minutes_site_ser > 0
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_site_name)">
+            and site_name like CONCAT('%', #{sch_site_name}, '%')
+        </if>
+
+    </select>
+
+
+    <select id="getSiteList" parameterType="mngSiteVO" resultType="mngSiteDTO">
+
+          select s.*
+        from(
+              select site.minutes_site_ser,
+                     site.site_name,
+                     site.create_time,
+                     site.max_meeting_room_cnt,
+                     site.max_mic_cnt,
+                     site.stt_model_ser,
+                     model.model_desc
+              from MINUTES_SITE site
+                  left outer join STT_MODEL model on site.stt_model_ser = model.stt_model_ser
+              )s
+        where 1 = 1
+           and minutes_site_ser > 0
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_site_name)">
+            and site_name like CONCAT('%', #{sch_site_name}, '%')
+        </if>
+        ORDER BY create_time desc, minutes_site_ser desc, site_name asc
+        LIMIT ${startRow},  ${pageInitPerPage}
+
+    </select>
+
+    <select id="getSiteDetail" parameterType="mngSiteVO" resultType="mngSiteDTO">
+
+        select s.*
+        from(
+        select site.minutes_site_ser,
+        site.site_name,
+        site.create_time,
+        site.max_meeting_room_cnt,
+        site.max_mic_cnt,
+        site.stt_model_ser,
+        model.model_desc
+        from MINUTES_SITE site
+        left outer join STT_MODEL model on site.stt_model_ser = model.stt_model_ser
+        )s
+        where 1 = 1
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(minutes_site_ser)">
+            and minutes_site_ser  = #{minutes_site_ser}
+        </if>
+    </select>
+
+
+
+    <select id="getModelbox" resultType="modelDTO">
+            select *
+            from STT_MODEL
+            where 1 = 1
+            order by  stt_model_name asc, model_desc asc
+    </select>
+
+    <insert id="createSite" parameterType="modelDTO">
+          insert into MINUTES_SITE(stt_model_ser, create_user, create_time, site_name, max_meeting_room_cnt, max_mic_cnt)
+                      values(#{stt_model_ser}, #{create_user}, now(), #{site_name}, #{max_meeting_room_cnt}, #{max_mic_cnt})
+    </insert>
+
+
+    <update id="updateSiteInfo" parameterType="mngSiteDTO">
+
+        update MINUTES_SITE
+        set  update_time = current_time()
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(stt_model_ser)">
+            , stt_model_ser = #{stt_model_ser}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(site_name)">
+            , site_name = #{site_name}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(max_meeting_room_cnt)">
+            , max_meeting_room_cnt = #{max_meeting_room_cnt}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(max_mic_cnt)">
+            , max_mic_cnt = #{max_mic_cnt}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(update_user)">
+            , update_user = #{update_user}
+        </if>
+        where minutes_site_ser = #{minutes_site_ser}
+    </update>
+
+    <select id="checkIncludeUser" parameterType="hashMap" resultType="int">
+
+        select count(*) cnt
+        from MINUTES_USER
+        WHERE minutes_site_ser IN
+        <foreach item="item" collection="siteList" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+
+    </select>
+
+    <delete id="delSites" parameterType="hashMap">
+
+        delete from MINUTES_SITE
+        WHERE minutes_site_ser IN
+        <foreach item="item" collection="siteList" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+
+    </delete>
+
+</mapper>

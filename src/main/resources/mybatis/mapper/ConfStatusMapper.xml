@@ -1,0 +1,488 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.ConfStatusMapper">
+
+    <select id="getSttMetaOneByMetaId" parameterType="frontConfVO" resultType="sttMetaDTO">
+        SELECT /* getSttMetaOneByMetaId */
+               *
+        FROM STT_META
+        WHERE stt_meta_ser = #{meta_ser}
+    </select>
+
+    <!-- dashboard에서 사용하는 사이트 리스트를  minutes_site테이블 select -->
+    <select id="getSiteListAll" resultType="minutesSiteDTO">
+        SELECT /* getSiteListAll */
+               *
+        FROM MINUTES_SITE
+        ORDER BY minutes_site_ser ASC;
+    </select>
+
+    <!-- dashboard에서 사용하는 해당 사이트의 미팅룸 수를 minutes_meetingroom 테이블에서 select -->
+    <select id="getMeetingRoomTotalCountBySiteId" parameterType="frontConfVO" resultType="Integer">
+        SELECT /* getMeetingRoomTotalCountBySiteId */
+               count(*) count
+        FROM MINUTES_MEETINGROOM
+        WHERE minutes_site_ser = ${site_ser}
+          AND used_flag = 1
+    </select>
+
+
+    <!--dashboard에서 사용하는 해당 사이트의 미팅룸를 minutes_meetingroom 테이블에서 select -->
+    <select id="getMeetingRoomListBySiteId" parameterType="frontConfVO" resultType="minutesMeetingRoomDTO">
+        SELECT /* getMeetingRoomListBySiteId */
+               a.*,
+               IFNULL(b.ing_cnt, 0) AS ing_cnt, b.ing_mr_ser,
+               IFNULL(c.res_cnt, 0) AS res_cnt, c.res_mr_ser
+        FROM
+            (
+                -- 전체 미팅룸 select
+                SELECT *
+                FROM MINUTES_MEETINGROOM
+                WHERE minutes_site_ser = ${site_ser}
+                  AND used_flag = 1
+            ) a
+            LEFT OUTER JOIN
+            (
+                -- 회의 시작 날짜가 오늘인 회의 중, 진행중인 미팅룸 카운트. 회의중
+                SELECT COUNT(stt_meta_ser) AS ing_cnt, minutes_meetingroom AS ing_mr_ser
+                FROM STT_META
+                WHERE date_format(minutes_start_date, '%Y-%m-%d') = current_date
+                  AND minutes_status = '2'
+                  AND minutes_site_ser = ${site_ser}
+                GROUP BY minutes_meetingroom
+            ) AS b
+            ON a.minutes_meetingroom_ser = b.ing_mr_ser
+            LEFT OUTER JOIN
+            (
+                -- 회의 시작 날짜가 오늘인 회의 중, 아직 시작하지 않은 미팅룸 카운트. 예약
+                SELECT COUNT(stt_meta_ser) AS res_cnt, minutes_meetingroom AS res_mr_ser
+                FROM STT_META
+                WHERE date_format(minutes_start_date, '%Y-%m-%d %H:%i:%s') >= current_timestamp
+                  AND minutes_status = '1'
+                  AND minutes_site_ser = ${site_ser}
+                GROUP BY minutes_meetingroom
+            ) c
+            ON a.minutes_meetingroom_ser = c.res_mr_ser
+    </select>
+
+
+    <!-- 상세보기 페이징을 위한 전체 카운트. 검색 적용 -->
+    <select id="getDetailViewTotalCount" parameterType="frontConfVO" resultType="Integer">
+        SELECT count(*)
+        FROM (
+                SELECT a.minutes_site_ser,
+                       a.minutes_meetingroom_ser,
+                       a.minutes_name,
+                       a.minutes_joined_cnt,
+                       a.minutes_joined_mem,
+                       b.meetingroom_name,
+                       a.minutes_start_date,
+                       a.memo
+                FROM STT_META a
+                LEFT JOIN MINUTES_MEETINGROOM b
+                ON    a.minutes_site_ser = b.minutes_site_ser
+                  AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+        ) c
+        WHERE c.minutes_site_ser = #{site_ser}
+          AND c.minutes_meetingroom_ser = #{room_ser}
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confName)">
+          AND c.minutes_name like CONCAT('%', #{confName}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confRoom)">
+          AND c.meetingroom_name like CONCAT('%', #{confRoom}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confDateStart, confDateEnd)">
+          AND date_format(c.minutes_start_date, '%Y-%m-%e') BETWEEN #{confDateStart} and #{confDateEnd}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(joinedMem)">
+          AND c.minutes_joined_mem like CONCAT('%', #{joinedMem}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confMemo)">
+          AND c.memo like CONCAT('%', #{confMemo}, '%')
+        </if>
+    </select>
+
+    <!-- 상세보기 전체 게시물 select. 검색 적용 -->
+    <select id="getDetailViewAllList" parameterType="frontConfVO" resultType="sttMetaDTO">
+
+          SELECT a.stt_meta_ser,
+                 a.minutes_site_ser,
+                 a.minutes_meetingroom_ser,
+                 a.minutes_name,
+                 b.meetingroom_name,
+                 a.minutes_joined_cnt,
+                 a.minutes_joined_mem,
+                 a.minutes_start_date,
+                 a.rec_start_time,
+                 a.rec_end_time,
+                 a.rec_time,
+                 a.memo
+                FROM STT_META a
+                LEFT JOIN MINUTES_MEETINGROOM b
+                ON    a.minutes_site_ser = b.minutes_site_ser
+                  AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+
+        WHERE a.minutes_site_ser = #{site_ser}
+        AND a.minutes_meetingroom_ser = #{room_ser}
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confName)">
+          AND a.minutes_name like CONCAT('%', #{confName}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confRoom)">
+          AND b.meetingroom_name like CONCAT('%', #{confRoom}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confDateStart, confDateEnd)">
+          AND date_format(a.minutes_start_date, '%Y-%m-%e') BETWEEN #{confDateStart} and #{confDateEnd}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(joinedMem)">
+          AND a.minutes_joined_mem like CONCAT('%', #{joinedMem}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confMemo)">
+          AND a.memo like CONCAT('%', #{confMemo}, '%')
+        </if>
+        ORDER BY a.stt_meta_ser DESC
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+
+    <select id="searchUserCnt" parameterType="java.util.Map" resultType="Integer">
+        select  count(*) as cnt
+        from(
+                select e.minutes_employee_ser,
+                e.name,
+                e.useYn,
+                e.part as part_code,
+                (select CODE_VALUE from COMMON_CODE c where c.code_one ='CD003' and e.part = c.code_two) as part,
+                (select CODE_VALUE from COMMON_CODE c where c.code_one ='CD002' and e.position = c.code_two) as position
+                from MINUTES_EMPLOYEE e
+                where useYn ='Y'
+             )c
+        where 1 = 1
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(name)">
+            AND c.name like CONCAT('%', #{name}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(part)">
+            AND c.part_code  =  #{part}
+        </if>
+    </select>
+
+
+    <select id="searchUser" parameterType="java.util.Map" resultType="MinutesEmployeeDTO">
+            select  c.minutes_employee_ser,
+                    c.name,
+                    c.useYn,
+                    c.part,
+                    c. position
+            from(
+                    select e.minutes_employee_ser,
+                           e.name,
+                           e.useYn,
+                           e.part as part_code,
+                           (select CODE_VALUE from COMMON_CODE c where c.code_one ='CD003' and e.part = c.code_two) as part,
+                           (select CODE_VALUE from COMMON_CODE c where c.code_one ='CD002' and e.position = c.code_two) as position
+                    from MINUTES_EMPLOYEE e
+                    where useYn ='Y'
+                 )c
+            where 1 = 1
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(name)">
+            AND c.name like CONCAT('%', #{name}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(part)">
+            AND c.part_code  =  #{part}
+        </if>
+        ORDER BY c.minutes_employee_ser DESC
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+
+    <!-- 대시보드에서 회의 '시작' 버튼 클릭 -->
+    <update id="doStartMeetingRoomStatus" parameterType="frontConfVO">
+        UPDATE STT_META
+           SET rec_status = #{recStatus},
+               minutes_status = #{meetStatus},
+               rec_start_time = CURRENT_TIMESTAMP,
+               update_user = #{update_user}
+        WHERE stt_meta_ser = #{meta_ser}
+    </update>
+
+
+    <!-- 대시보드에서 회의 '종료' 버튼 클릭 -->
+    <update id="doEndMeetingRoomStatus" parameterType="frontConfVO">
+        UPDATE STT_META
+           SET minutes_status = #{meetStatus},
+               rec_end_time = CURRENT_TIMESTAMP,
+               update_user = #{update_user}
+        WHERE stt_meta_ser = #{meta_ser}
+    </update>
+
+
+
+    <!-- '종료'버튼 클릭 후 rec_time(종료시간 - 시작시간) 업데이트 -->
+    <update id="doRecTimeUpdate" parameterType="frontConfVO">
+        UPDATE STT_META
+           SET rec_time = TIME_TO_SEC(
+                                timediff(
+                                    date_format(#{recEndTime}, '%Y-%m-%d %H:%i:%s'),
+                                    date_format(#{recStartTime}, '%Y-%m-%d %H:%i:%s')
+                                )
+                          ),
+               update_user = #{update_user}
+        WHERE stt_meta_ser = #{meta_ser}
+    </update>
+
+
+
+
+
+    <!-- dashboard에서 사용하는 회의목록를  minutes_site_ser값 기준으로 select -->
+    <select id="getSttMetaListBySiteId" parameterType="frontConfVO" resultType="sttMetaDTO">
+        SELECT /* getSttMetaListBySiteId */
+               stt_meta_ser, minutes_id,
+               a.minutes_site_ser, minutes_name, b.meetingroom_name, minutes_joined_cnt, minutes_joined_mem, minutes_status,
+               rec_start_time, rec_end_time, rec_status
+        FROM STT_META a,
+             MINUTES_MEETINGROOM b
+        WHERE a.minutes_site_ser = #{site_ser}
+          AND a.minutes_site_ser = b.minutes_site_ser
+          AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+        ORDER BY a.stt_meta_ser DESC
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+
+    <!-- dashboard에서 사용하는 회의목록를  minutes_site_ser값 기준으로 select -->
+    <select id="getSttMetaListTotalCountBySiteId" parameterType="frontConfVO" resultType="Integer">
+        SELECT /* getSttMetaListTotalCountBySiteId */
+               count(*) count
+        FROM STT_META a,
+             MINUTES_MEETINGROOM b
+        WHERE a.minutes_site_ser = #{site_ser}
+          AND a.minutes_site_ser = b.minutes_site_ser
+          AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+    </select>
+
+
+    <!-- 회의현황.회의설정에 보이기 위한 마이크 리스트. minutes_site_ser, minutes_meetingroom_ser값 기준으로 select -->
+    <select id="getMicListBySiteIdRoomId" parameterType="frontConfVO" resultType="minutesMicDTO">
+        SELECT /* getMicListBySiteIdRoomId */
+               *
+        FROM MINUTES_MIC a,
+             MINUTES_MEETINGROOM b
+        WHERE a.minutes_site_ser = #{site_ser}
+          AND a.minutes_meetingroom_ser = #{room_ser}
+          AND a.minutes_site_ser = b.minutes_site_ser
+          AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+    </select>
+
+
+    <!-- 회의현황.회의설정에 보이기 위한 마이크 리스트. minutes_site_ser, minutes_meetingroom_ser, minutes_mic_ser값 기준으로 select -->
+    <select id="getMicListBySiteIdRoomIdMicId" parameterType="frontConfVO" resultType="minutesMicDTO">
+        SELECT /* getMicListBySiteIdRoomIdMicId */
+                *
+        FROM MINUTES_MIC a,
+             STT_META b
+        WHERE a.minutes_site_ser = b.minutes_site_ser
+          AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+          AND b.minutes_id = #{minutes_id}
+          AND a.minutes_site_ser = #{site_ser}
+          AND a.minutes_meetingroom_ser = #{room_ser}
+          AND a.minutes_mic_ser = #{mic_ser}
+    </select>
+
+
+    <!-- 회의현황.회의룸 설정 저장 -->
+    <update id="doConfSetUpSave" parameterType="frontConfVO">
+        INSERT INTO /* doConfSetUpSave */
+                STT_META(
+                    minutes_site_ser, minutes_meetingroom_ser,
+                    minutes_machine_ser,
+                    minutes_id, minutes_name, minutes_type,
+                    minutes_start_date, minutes_topic, minutes_joined_mem, minutes_joined_cnt, minutes_status,
+                    create_user
+                )
+                VALUES (
+                    #{site_ser}, #{room_ser},
+                    (SELECT minutes_machine_ser
+                     FROM MINUTES_MACHINE
+                     WHERE minutes_site_ser = #{site_ser}
+                       AND minutes_meetingroom_ser = #{room_ser}
+                    ),
+                    #{minutes_id}, #{confName}, #{minutes_type},
+                    #{confTime}, #{confTopic}, #{confJoinedEmpName}, #{confJoinedCnt}, '1',
+                    #{create_user}
+                )
+    </update>
+
+
+    <!-- 회의현황.회의룸 마이크 설정 저장 -->
+    <update id="doSetUpMicSave" parameterType="frontConfVO">
+        INSERT INTO /* doSetUpMicSave */
+                    MINUTES_MIC_HIST(
+                            minutes_site_ser, minutes_meetingroom_ser, stt_meta_ser,
+                            minutes_mic_ser, minutes_joined_name, mic_use_yn,
+                            create_user
+                    )
+                    VALUES (
+                            #{site_ser}, #{room_ser}, #{meta_ser},
+                            #{mic_ser}, #{userName}, #{micUseYn},
+                            #{create_user}
+                    )
+        ON DUPLICATE KEY UPDATE minutes_joined_name=#{userName}, mic_use_yn=#{micUseYn};
+    </update>
+
+
+
+    <!-- "실시간 녹음 회의록"에서 사용하는 회의에 대한 기본 정보 select -->
+    <select id="getSttMetaOne" parameterType="frontConfVO" resultType="sttMetaDTO">
+        SELECT /* getSttMetaOne */
+               cast(unix_timestamp(a.rec_start_time) as unsigned integer) * 1000 as rec_start_time_sec,
+               a.*, b.*
+        FROM STT_META a,
+             MINUTES_MEETINGROOM b
+        WHERE a.minutes_site_ser = b.minutes_site_ser
+          AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+          AND a.stt_meta_ser = #{meta_ser}
+    </select>
+
+
+    <!-- "실시간 녹음 회의록"에서 사용하는 마이크 설정 정보 -->
+    <select id="getMicSetInfo" parameterType="frontConfVO" resultType="minutesMicDTO">
+        SELECT a.minutes_mic_ser, a.mic_name, a.mic_ipaddr, a.mic_port, a.mic_id,
+               b.minutes_joined_name, b.mic_use_yn
+        FROM MINUTES_MIC a,
+             MINUTES_MIC_HIST b
+        WHERE b.stt_meta_ser = #{meta_ser}
+          AND a.minutes_site_ser = b.minutes_site_ser
+          AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+          AND a.minutes_mic_ser = b.minutes_mic_ser
+    </select>
+
+
+    <!-- "실시간 녹음 회의록"에서 사용하는 회의의 대화내용 리스트 -->
+    <select id="getSttResultListByMetaId" parameterType="frontConfVO" resultType="sttResultDTO">
+        SELECT /* getSttResultListByMetaId */
+               a.*, from_unixtime( (unix_timestamp(rec_start_time) + a.sntnc_start_time)) as msg_start_time,
+               c.minutes_joined_name
+        FROM STT_RESULT a,
+             STT_META b,
+             (
+                 SELECT stt_meta_ser, minutes_mic_ser, minutes_joined_name
+                 FROM MINUTES_MIC_HIST
+                 WHERE STT_META_SER = #{meta_ser}
+             ) c
+        WHERE a.stt_meta_ser = #{meta_ser}
+          AND a.stt_meta_ser = b.stt_meta_ser
+          AND a.stt_meta_ser = c.stt_meta_ser
+          AND a.minutes_mic_ser = c.minutes_mic_ser
+        ORDER BY sntnc_no ASC
+    </select>
+
+
+    <!-- 실시간, 녹음된 회의록 메모 저장 -->
+    <update id="doMemoSave" parameterType="frontConfVO">
+        UPDATE STT_META
+           SET memo = #{memo}
+        WHERE stt_meta_ser = #{meta_ser}
+    </update>
+
+    <!-- 녹음된 회의록 문장 편집 -->
+    <update id="doSntncSave" parameterType="frontConfVO">
+        UPDATE STT_RESULT
+           SET sntnc_desc = #{sntnc_desc}
+        WHERE stt_meta_ser = #{meta_ser}
+          AND minutes_mic_ser = #{mic_ser}
+          AND sntnc_no = #{sntnc_no}
+    </update>
+
+    <!-- stt_meta_ser로 STT_META 테이블에서 한건 삭제 -->
+    <update id="doMeetingCancel" parameterType="frontConfVO">
+        DELETE FROM STT_META
+        WHERE stt_meta_ser = #{meta_ser}
+    </update>
+
+
+    <!-- stt_meta_ser로 MINUTES_MIC_HIST 테이블에서 n건 삭제 -->
+    <update id="doMicHistDel" parameterType="frontConfVO">
+        DELETE FROM MINUTES_MIC_HIST
+        WHERE stt_meta_ser = #{meta_ser}
+    </update>
+
+
+    <!-- stt_meta_ser로 마이크 IP, Port 정보 select -->
+    <select id="getMicInfo" parameterType="frontConfVO" resultType="minutesMicDTO">
+        SELECT a.minutes_mic_ser, a.mic_name, a.mic_ipaddr, a.mic_port
+        FROM MINUTES_MIC a,
+             STT_META b
+        WHERE b.stt_meta_ser = #{meta_ser}
+          AND a.minutes_site_ser = b.minutes_site_ser
+          AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+    </select>
+
+
+    <!-- MINUTES_USER table 전체 수. 검색 포함 -->
+    <select id="getMinutesUserTotalCount" parameterType="frontConfVO" resultType="Integer">
+        SELECT /* getMinutesUserTotalCount */
+               count(*) count
+        FROM MINUTES_EMPLOYEE
+        WHERE minutes_site_ser = #{site_ser}
+        <if test="schWord != null and schWord != '' ">
+         AND ${schField} like CONCAT('%', #{schWord}, '%')
+        </if>
+    </select>
+
+
+    <!-- MINUTES_USER table 전체 수. 검색 포함 -->
+    <select id="getMinutesUserAllList" parameterType="frontConfVO" resultType="minutesEmployeeDTO">
+        SELECT /* getMinutesUserAllList */
+               *
+        FROM MINUTES_EMPLOYEE
+        WHERE minutes_site_ser = #{site_ser}
+        <if test="schWord != null and schWord != '' ">
+          AND ${schField} like CONCAT('%', #{schWord}, '%')
+        </if>
+        ORDER BY name ASC
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+
+    <select id="checkMinutesStatus" parameterType="frontConfVO" resultType="minutesMeetingRoomDTO">
+
+          SELECT a.minutes_meetingroom_ser,
+        IFNULL(b.ing_cnt, 0) AS ing_cnt, b.ing_mr_ser,
+        IFNULL(c.res_cnt, 0) AS res_cnt, c.res_mr_ser
+        FROM
+            (
+                -- 전체 미팅룸 select
+                SELECT minutes_meetingroom_ser
+                FROM MINUTES_MEETINGROOM
+                WHERE minutes_site_ser =  #{site_ser}
+                  AND used_flag = 1
+                  AND minutes_meetingroom_ser = #{room_ser}
+            ) a
+            LEFT OUTER JOIN
+            (
+                -- 회의 시작 날짜가 오늘인 회의 중, 진행중인 미팅룸 카운트. 회의중
+                SELECT COUNT(stt_meta_ser) AS ing_cnt, minutes_meetingroom_ser AS ing_mr_ser
+                FROM STT_META
+                WHERE date_format(minutes_start_date, '%Y-%m-%d') =  date_format(STR_TO_DATE(#{confTime}, '%Y-%m-%d'),'%Y-%m-%d ')
+                  AND minutes_status = '2'
+                  AND minutes_site_ser =  #{site_ser}
+                GROUP BY minutes_meetingroom_ser
+            ) AS b
+            ON a.minutes_meetingroom_ser = b.ing_mr_ser
+            LEFT OUTER JOIN
+            (
+                -- 회의 시작 날짜가 오늘인 회의 중, 아직 시작하지 않은 미팅룸 카운트. 예약
+                SELECT COUNT(stt_meta_ser) AS res_cnt, minutes_meetingroom_ser AS res_mr_ser
+                FROM STT_META
+                WHERE date_format(minutes_start_date, '%Y-%m-%d %H:%i:%s') <![CDATA[>=]]> date_format(STR_TO_DATE(#{confTime}, '%Y-%m-%d %H:%i:%s'),'%Y-%m-%d %H:%i:%s')
+                  AND minutes_status = '1'
+                  AND TIMESTAMPDIFF(hour ,minutes_start_date, #{confTime}) <![CDATA[<=]]> 1
+                  AND minutes_site_ser =  #{site_ser}
+                GROUP BY minutes_meetingroom_ser
+            ) c
+            ON a.minutes_meetingroom_ser = c.res_mr_ser
+
+    </select>
+</mapper>

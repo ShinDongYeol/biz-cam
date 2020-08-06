@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.SttResultMapper">
+
+    <select id="gets" parameterType="frontMinutesVO" resultType="sttResultDTO">
+        SELECT
+               stt_result_ser,
+               stt_meta_ser,
+               minutes_employee,
+               stt_org_result,
+               stt_chg_result,
+               date_format(stt_result_start, '%Y-%m-%d %H:%i:%s') as stt_result_start,
+               date_format(stt_result_end, '%Y-%m-%d %H:%i:%s') as stt_result_end,
+               TIMESTAMPDIFF(SECOND , (SELECT min(stt_result_start) from STT_RESULT WHERE STT_META_SER = #{sttMetaSer}),stt_result_start ) AS stt_diff_time,
+               create_user,
+               date_format(create_time, '%Y-%m-%d %H:%i:%s') as create_time,
+               update_user,
+               date_format(update_time, '%Y-%m-%d %H:%i:%s') as update_time
+        FROM STT_RESULT a
+        WHERE a.stt_meta_ser = #{sttMetaSer}
+        ORDER BY stt_result_ser ASC
+    </select>
+
+    <select id="getsGroupByEmployee" parameterType="frontMinutesVO" resultType="sttResultDTO">
+        SELECT
+               minutes_employee
+        FROM STT_RESULT a
+        WHERE a.stt_meta_ser = #{sttMetaSer}
+        GROUP BY minutes_employee
+    </select>
+
+    <!-- 파일 업로드 >  STT 결과 다운로드  -->
+    <select id="getSttExcelResultListByMetaId" parameterType="frontFileUpConfVO" resultType="sttResultDTO">
+        SELECT
+            a.stt_result_ser,a.minutes_employee,a.stt_org_result,a.stt_chg_result,
+            DATE_FORMAT(a.stt_result_start, '%Y-%m-%d %H:%i:%s') as stt_result_start,
+            DATE_FORMAT(a.stt_result_end, '%Y-%m-%d %H:%i:%s') as stt_result_end
+        FROM STT_RESULT a,
+             STT_META b
+        WHERE a.stt_meta_ser = #{sttMetaSer}
+          AND a.stt_meta_ser = b.stt_meta_ser
+        ORDER BY a.stt_result_ser ASC
+    </select>
+
+    <update id="updateMinutesAllEmployee" parameterType="frontMinutesUpdateVO">
+        UPDATE STT_RESULT
+        SET
+            MINUTES_EMPLOYEE = #{afterMinutesEmployee},
+            UPDATE_USER = #{updateUser},
+            UPDATE_TIME = current_time()
+        WHERE stt_meta_ser = #{sttMetaSer}
+            AND MINUTES_EMPLOYEE = #{beforeMinutesEmployee}
+    </update>
+
+    <update id="updateSttResult" parameterType="frontMinutesUpdateVO">
+        UPDATE STT_RESULT
+        SET
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(minutesEmployee)">
+            MINUTES_EMPLOYEE = #{minutesEmployee},
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sttChgResult)">
+            STT_CHG_RESULT = #{sttChgResult},
+        </if>
+            UPDATE_USER = #{updateUser},
+            UPDATE_TIME = current_time()
+        WHERE stt_result_ser = #{sttResultSer}
+    </update>
+
+    <update id="updateEmptyToNullBySttChgResult" parameterType="frontMinutesUpdateVO">
+        UPDATE STT_RESULT
+        SET
+            STT_CHG_RESULT = '',
+        UPDATE_USER = #{updateUser},
+        UPDATE_TIME = current_time()
+        WHERE stt_result_ser = #{sttResultSer}
+    </update>
+
+    <delete id="delete" parameterType="Integer">
+        DELETE FROM
+        STT_RESULT
+        WHERE stt_meta_ser = #{sttMetaSer}
+    </delete>
+
+
+
+</mapper>

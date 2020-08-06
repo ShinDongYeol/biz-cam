@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ai.maum.biz.cams.mapper.ModelMapper">
+
+
+    <select id="modelListCount" parameterType="modelVO" resultType="int">
+
+        select count(stt_model_ser) as cnt
+        from STT_MODEL
+        where 1=1
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_Name)">
+            and stt_model_name like CONCAT('%', #{sch_Name}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_deepLearnType)">
+            and UPPER(deep_learning_type) = UPPER(#{sch_deepLearnType})
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_Lang)">
+            and UPPER(stt_model_lang) = UPPER(#{sch_Lang})
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_modelDesc)">
+            and model_desc like CONCAT('%', #{sch_modelDesc}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_Rate)">
+            and stt_model_rate = #{sch_Rate}
+        </if>
+
+    </select>
+
+    <select id="modelList" parameterType="modelVO" resultType="modelDTO">
+
+        select *
+        from STT_MODEL
+        where 1=1
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_Name)">
+            and stt_model_name like CONCAT('%', #{sch_Name}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_deepLearnType)">
+            and UPPER(deep_learning_type) = UPPER(#{sch_deepLearnType})
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_Lang)">
+            and UPPER(stt_model_lang) = UPPER(#{sch_Lang})
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_modelDesc)">
+            and model_desc like CONCAT('%', #{sch_modelDesc}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_Rate)">
+            and stt_model_rate = #{sch_Rate}
+        </if>
+        ORDER BY create_time desc, stt_model_ser desc, stt_model_name asc
+        LIMIT ${startRow},  ${pageInitPerPage}
+
+    </select>
+
+
+    <select id="getModel" parameterType="modelVO" resultType="modelDTO">
+
+        select *
+        from STT_MODEL
+        where 1=1
+        and stt_model_ser =${model_ser}
+    </select>
+
+    <update id="updateModel" parameterType="modelDTO">
+
+        update STT_MODEL
+        set  update_time = current_time()
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(deep_learning_type)">
+          , deep_learning_type = #{deep_learning_type}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(stt_model_name)">
+            , stt_model_name = #{stt_model_name}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(stt_server_ip)">
+            , stt_server_ip = #{stt_server_ip}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(stt_server_port)">
+            , stt_server_port = #{stt_server_port}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(stt_model_lang)">
+            , stt_model_lang = #{stt_model_lang}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(stt_model_rate)">
+            , stt_model_rate = #{stt_model_rate}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(model_desc)">
+            , model_desc = #{model_desc}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(update_user)">
+            , update_user = #{update_user}
+        </if>
+        where stt_model_ser = #{stt_model_ser}
+
+    </update>
+
+    <select id="checkUsedSite" resultType="int" parameterType="hashMap">
+        select count(*) cnt
+        from MINUTES_SITE
+        WHERE stt_model_ser IN
+        <foreach item="item" collection="modelList" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+
+    </select>
+
+
+    <delete id="delModels" parameterType="hashMap">
+        delete from STT_MODEL
+        WHERE stt_model_ser IN
+        <foreach item="item" collection="modelList" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+
+    </delete>
+
+    <insert id="createModel" parameterType="modelDTO">
+          insert into STT_MODEL(create_user, create_time, deep_learning_type, stt_model_name,stt_server_ip,stt_server_port, stt_model_lang, stt_model_rate, model_desc)
+               value(#{create_user}, now(), #{deep_learning_type}, #{stt_model_name}, #{stt_server_ip}, #{stt_server_port}, #{stt_model_lang}, #{stt_model_rate}, #{model_desc})
+    </insert>
+</mapper>

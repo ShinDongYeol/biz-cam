@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.ConfFileUploadMapper">
+
+    <!-- 페이징을 위한 전체 카운트 -->
+    <select id="getUploadCount" parameterType="hashMap" resultType="Integer">
+        SELECT
+               COUNT(*) AS cnt
+        FROM
+            STT_META SM,MINUTES_SITE MS
+        WHERE
+                  SM.minutes_site_ser = MS.minutes_site_ser
+                    AND SM.minutes_site_ser = 1
+                    AND SM.rec_src_cd = 0
+        ORDER BY SM.stt_meta_ser DESC
+    </select>
+
+    <!-- 처리 결과 전체 List -->
+    <select id="getUploadList" parameterType="frontFileUpConfVO" resultType="sttMetaDTO">
+            SELECT
+                   SM.stt_meta_ser,
+                   SM.file_name, -- 파일명
+                   SEC_TO_TIME(IFNULL(SM.rec_time,0)) as rec_time, -- 파일 길이
+                   minutes_status,
+                   case minutes_status
+                       when 0 then '예약(업로드)'
+                       when 1 then 'FILE 처리중'
+                       when 2 then '완료'
+                       when 3 then '오류'
+                       when 10 then '회의예약'
+                       when 11 then '회의 진행중'
+                       when 12 then '회의종료'
+                   end as minutes_status_name,
+                   MS.site_name, -- Site Name
+                   SM.minutes_meetingroom, -- 회의룸
+                   SM.minutes_name, -- 회의명
+                   date_format(SM.start_time, '%Y-%m-%e') as minutes_date, -- 회의일자
+                   date_format(SM.start_time, '%H:%i') as start_time, -- 시작시간
+                   date_format(SM.end_time, '%H:%i') as end_time -- 종료시간
+            FROM
+                    STT_META SM,MINUTES_SITE MS
+            WHERE
+                  SM.minutes_site_ser = MS.minutes_site_ser
+                    AND SM.minutes_site_ser = 1
+                    AND SM.rec_src_cd = 0
+            ORDER BY SM.stt_meta_ser DESC
+            LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+    <!-- "실시간 녹음 회의록"에서 사용하는 회의의 대화내용 리스트 -->
+    <select id="getSttResultListByMetaId" parameterType="frontFileUpConfVO" resultType="sttResultDTO">
+      SELECT /* getSttResultListByMetaId */
+               a.*, from_unixtime( (unix_timestamp(start_time) + a.sntnc_start_time)) as msg_start_time
+        FROM STT_RESULT a,
+             STT_META b
+        WHERE a.stt_meta_ser = #{sttMetaSer}
+          AND a.stt_meta_ser = b.stt_meta_ser
+        ORDER BY sntnc_no ASC
+    </select>
+
+    <!-- 회의현황.회의룸 설정 저장 -->
+    <update id="saveFileUpload" parameterType="frontFileUpConfVO">
+       INSERT INTO /* saveFileUpload */
+                STT_META(
+                    minutes_user_ser,minutes_site_ser,minutes_meetingroom,
+                    minutes_machine,minutes_id,minutes_name,
+                    minutes_topic,minutes_joined_mem,minutes_joined_cnt,
+                    minutes_status,rec_src_cd,file_name,file_path,
+                    start_time,end_time,rec_time,create_user
+                )
+        VALUES (
+            #{minutesUserSer}, #{minutesSiteSer},#{minutesMeetingroom},
+            #{minutesMachine},#{minutesId}, #{minutesName},
+            #{minutesTopic},#{minutesJoinedMem},#{minutesJoinedCnt},
+            #{minutesStatus},#{recSrcCd},#{fileName},#{filePath},
+            #{startTime}, #{endTime}, #{recTime}, #{createUser}
+        )
+    </update>
+
+
+</mapper>

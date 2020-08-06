@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.SttMetaMapper">
+
+    <select id="getBySttMetaSer" parameterType="frontMinutesVO" resultType="sttMetaDTO">
+        SELECT
+                stt_meta_ser,
+                minutes_name,
+                minutes_meetingroom,
+                start_time,end_time,
+                minutes_topic,
+                minutes_joined_cnt,
+                minutes_joined_mem,
+                memo,
+                file_path
+        FROM STT_META
+        WHERE stt_meta_ser = #{sttMetaSer}
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(searchStartDate, searchEndDate)">
+            AND date_format(start_time, '%Y-%m-%e') BETWEEN #{start_time} and #{end_time}
+        </if>
+    </select>
+
+    <select id="gets" parameterType="frontMinutesVO" resultType="sttMetaDTO">
+        SELECT
+               stt_result_ser,
+               stt_meta_ser,
+               minutes_employee,
+               stt_org_result,
+               stt_chg_result,
+               date_format(stt_result_start, '%Y-%m-%d %H:%i:%s') as stt_result_start,
+               date_format(stt_result_end, '%Y-%m-%d %H:%i:%s') as stt_result_end,
+               create_user,
+               date_format(create_time, '%Y-%m-%d %H:%i:%s') as create_time,
+               update_user,
+               date_format(update_time, '%Y-%m-%d %H:%i:%s') as update_time
+        FROM STT_RESULT a
+        WHERE a.stt_meta_ser = #{sttMetaSer}
+        ORDER BY stt_result_ser ASC
+    </select>
+
+    <!-- 회의록관리 > 회의록 리스트 count-->
+    <select id="getMinutesCount" parameterType="frontMinutesVO" resultType="Integer">
+        SELECT
+               COUNT(*) AS cnt
+        FROM
+                STT_META SM,MINUTES_SITE MS
+        WHERE
+              SM.minutes_site_ser = MS.minutes_site_ser
+                <if test='userType !="A"'>
+                    AND SM.minutes_site_ser = #{minutesSiteSer}
+                </if>
+                AND SM.rec_src_cd = 0
+                <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(searchStartDate, searchEndDate)">
+                    AND date_format(SM.start_time, '%Y-%m-%e') BETWEEN #{searchStartDate} and #{searchEndDate}
+                </if>
+    </select>
+
+    <!-- 회의록관리 > 회의록 리스트-->
+    <select id="getMinutesList" parameterType="frontMinutesVO" resultType="sttMetaDTO">
+        SELECT
+               SM.stt_meta_ser,
+               SM.minutes_name, -- 회의명
+               MS.site_name, -- Site Name
+               SM.minutes_meetingroom, -- 회의실
+              (SELECT user_name FROM MINUTES_USER WHERE USER_ID = SM.create_user) as user_name,
+               SM.create_user,  -- 작성자
+               DATE_FORMAT(SM.create_time, '%Y-%m-%d %H:%i:%s') as create_time, -- 작성일시
+               DATE_FORMAT(SM.update_time, '%Y-%m-%d %H:%i:%s') as update_time, -- 수정일시
+               SM.file_name, -- 파일명
+               minutes_status
+        FROM
+                STT_META SM,MINUTES_SITE MS
+        WHERE
+              SM.minutes_site_ser = MS.minutes_site_ser
+              <if test='userType !="A"'>
+                  AND SM.minutes_site_ser = #{minutesSiteSer}
+              </if>
+                  AND SM.rec_src_cd = 0
+              <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(searchStartDate, searchEndDate)">
+                  AND date_format(SM.start_time, '%Y-%m-%e') BETWEEN #{searchStartDate} and #{searchEndDate}
+               </if>
+        <choose>
+            <when test='@ai.maum.biz.cams.utils.CommonUtils@strEmpty(order)'>
+                <if test='order =="createTime"'>
+                    ORDER BY SM.create_time DESC
+                </if>
+                <if test='order =="updateTime"'>
+                    ORDER BY SM.update_time DESC
+                </if>
+            </when>
+            <otherwise>
+                ORDER BY SM.stt_meta_ser DESC
+            </otherwise>
+        </choose>
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+    <!-- 회의현황.회의룸 설정 저장 -->
+    <insert id="reg" parameterType="frontMinutesCreateVO" useGeneratedKeys="true" keyProperty="sttMetaSer">
+       INSERT INTO /* saveFileUpload */
+                STT_META(
+                    minutes_user_ser,minutes_site_ser,minutes_meetingroom,
+                    minutes_machine,minutes_id,minutes_name,
+                    minutes_topic,minutes_joined_mem,minutes_joined_cnt,
+                    minutes_status,rec_src_cd,file_name,file_path,
+                    start_time,
+                    end_time,
+                    rec_time,memo,create_user
+                )
+        VALUES (
+            #{minutesUserSer}, #{minutesSiteSer},#{minutesMeetingroom},
+            #{minutesMachine},#{minutesId}, #{minutesName},
+            #{minutesTopic},#{minutesJoinedMem},#{minutesJoinedCnt},
+            #{minutesStatus},#{recSrcCd},#{fileName},#{filePath},
+            #{startTime},
+            <choose>
+                <when test='@ai.maum.biz.cams.utils.CommonUtils@strEmpty(endTime)'>
+                    #{endTime},
+                </when>
+                <otherwise>
+                    DATE_ADD(#{startTime}, INTERVAL ${recTime} SECOND),
+                </otherwise>
+            </choose>
+            #{recTime}, #{memo},#{createUser}
+        )
+    </insert>
+
+    <update id="updateMinutesMeta" parameterType="frontMinutesUpdateVO">
+         UPDATE STT_META
+         SET
+            update_user = #{updateUser},
+            update_time = current_time(),
+            minutes_meetingroom = #{minutesMeetingroom},
+            minutes_name = #{minutesName},
+            minutes_topic = #{minutesTopic},
+            minutes_joined_mem = #{minutesJoinedMem},
+            minutes_joined_cnt = #{minutesJoinedCnt},
+            start_time = #{startTime},
+            end_time = #{endTime}
+        WHERE stt_meta_ser = #{sttMetaSer}
+    </update>
+
+    <update id="updateMinutesId" parameterType="frontMinutesCreateVO">
+        UPDATE STT_META
+            SET MINUTES_ID = #{minutesId}
+        WHERE STT_META_SER = #{sttMetaSer}
+    </update>
+
+    <update id="updateMemo" parameterType="frontMinutesUpdateVO">
+        UPDATE STT_META
+            SET MEMO = #{memo}
+        WHERE STT_META_SER = #{sttMetaSer}
+    </update>
+
+    <delete id="delete" parameterType="Integer">
+        DELETE FROM
+        STT_META
+        WHERE stt_meta_ser = #{sttMetaSer}
+    </delete>
+
+
+</mapper>

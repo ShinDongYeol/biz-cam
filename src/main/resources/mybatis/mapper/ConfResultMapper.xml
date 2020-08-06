@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.ConfResultMapper">
+
+    <!-- 회의결과 페이징을 위해 전체 카운트 -->
+    <select id="getConfResultListTotalCount" parameterType="frontConfVO" resultType="Integer">
+        SELECT count(*)
+        FROM (
+                SELECT a.stt_meta_ser, a.minutes_site_ser,
+                       a.minutes_name, b.meetingroom_name, a.minutes_joined_cnt, a.minutes_joined_mem,
+                       a.minutes_start_date, a.rec_start_time, a.rec_end_time, a.rec_time, a.memo, a.minutes_status
+                FROM STT_META a
+                LEFT JOIN MINUTES_MEETINGROOM b
+                ON    a.minutes_site_ser = b.minutes_site_ser
+                  AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+        ) c
+        WHERE c.minutes_site_ser = #{site_ser}
+           and c.minutes_status = 3
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confName)">
+            AND c.minutes_name like CONCAT('%', #{confName}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confRoom)">
+            AND c.meetingroom_name like CONCAT('%', #{confRoom}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confDateStart, confDateEnd)">
+            AND date_format(c.minutes_start_date, '%Y-%m-%e') BETWEEN #{confDateStart} and #{confDateEnd}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(joinedMem)">
+            AND c.minutes_joined_mem like CONCAT('%', #{joinedMem}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confMemo)">
+            AND c.memo like CONCAT('%', #{confMemo}, '%')
+        </if>
+    </select>
+
+
+    <!-- 회의결과 전체 리스트, 검색 적용 -->
+    <select id="getConfResultListAll" parameterType="frontConfVO" resultType="sttMetaDTO">
+        SELECT c.stt_meta_ser, c.minutes_name, c.meetingroom_name, c.minutes_joined_cnt, c.minutes_joined_mem,
+               c.minutes_start_date, c.rec_start_time, c.rec_end_time, c.rec_time, c.memo
+        FROM (
+                SELECT a.stt_meta_ser, a.minutes_site_ser,
+                       a.minutes_name, b.meetingroom_name, a.minutes_joined_cnt, a.minutes_joined_mem,
+                       a.minutes_start_date, a.rec_start_time, a.rec_end_time, a.rec_time, a.memo, a.minutes_status
+                FROM STT_META a
+                LEFT JOIN MINUTES_MEETINGROOM b
+                ON    a.minutes_site_ser = b.minutes_site_ser
+                  AND a.minutes_meetingroom_ser = b.minutes_meetingroom_ser
+            ) c
+        WHERE c.minutes_site_ser = #{site_ser}
+             and c.minutes_status = 3
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confName)">
+            AND c.minutes_name like CONCAT('%', #{confName}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confRoom)">
+            AND c.meetingroom_name like CONCAT('%', #{confRoom}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confDateStart, confDateEnd)">
+            AND date_format(c.minutes_start_date, '%Y-%m-%e') BETWEEN #{confDateStart} and #{confDateEnd}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(joinedMem)">
+            AND c.minutes_joined_mem like CONCAT('%', #{joinedMem}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(confMemo)">
+            AND c.memo like CONCAT('%', #{confMemo}, '%')
+        </if>
+        ORDER BY c.stt_meta_ser DESC
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+
+
+    <!-- 치환 사전 리스트 페이징을 위한 전체 카운트. 검색적용 -->
+    <select id="getDicReplaceTotalCount" parameterType="frontDicVO" resultType="Integer">
+        SELECT /* getDicReplaceTotalCount */
+               count(*)
+        FROM MINUTES_REPLACE_WORD
+        WHERE 1=1
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(schWord)">
+            AND before_word LIKE CONCAT('%', #{schWord}, '%')
+        </if>
+    </select>
+
+
+    <!-- 치환 사전 리스트 페이징을 위한 전체 리스트. 검색적용 -->
+    <select id="getDicReplaceAllList" parameterType="frontDicVO" resultType="minutesReplaceWordDTO">
+        SELECT /* getDicReplaceTotalCount */
+               *
+        FROM MINUTES_REPLACE_WORD
+        WHERE 1=1
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(schWord)">
+            AND before_word LIKE CONCAT('%', #{schWord}, '%')
+        </if>
+        ORDER BY before_word ASC
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+</mapper>

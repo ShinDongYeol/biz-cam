@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.CommonMapper">
+    <!-- COMMON_CODE 테이블 전체 리스트 select -->
+    <select id="getCommonCodeListAll" resultType="commonCodeDTO">
+        SELECT *
+        FROM COMMON_CODE
+    </select>
+
+
+    <!-- COMMON_CODE 테이블에서 일부만 select -->
+    <select id="getCommonCodeListPart" parameterType="HashMap" resultType="commonCodeDTO">
+        SELECT *
+        FROM COMMON_CODE
+        WHERE 1=1
+        <if test="code_one != null and code_one != '' ">
+            AND code_one = #{code_one}
+        </if>
+        <if test="code_two != null and code_two != '' ">
+            AND code_two = #{code_two}
+        </if>
+        <if test="code_three != null and code_three != '' ">
+            AND code_three = #{code_three}
+        </if>
+        ORDER BY code_sort ASC
+    </select>
+
+
+    <!-- userRole 테이블에서  select -->
+    <select id="getUserRole" parameterType="HashMap" resultType="userRoleDTO">
+        SELECT *
+        FROM MINUTES_ROLE
+        WHERE 1=1
+           and use_yn ='Y'
+        ORDER BY role_order ASC
+    </select>
+
+
+    <!-- MINUTES_SITE에서 전체 사이트 리스트 select -->
+    <select id="getSiteListAll" resultType="minutesSiteDTO">
+        SELECT minutes_site_ser, site_name
+        FROM MINUTES_SITE
+        ORDER BY minutes_site_ser ASC
+    </select>
+
+</mapper>

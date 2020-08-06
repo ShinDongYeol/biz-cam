@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.UserMapper">
+
+    <!-- 리스트 전체 게시물 수. 검색 조건 적용 -->
+    <select id="getUserListAllCount" parameterType="userVO" resultType="Integer">
+        SELECT count(*)
+        FROM
+            MINUTES_USER a
+            , MINUTES_ROLE b
+            , MINUTES_SITE c
+        WHERE a.user_type = b.role_ser
+           AND a.minutes_site_ser = c.minutes_site_ser
+           AND b.use_yn ='Y'
+    <if test="sch_siteName != null and sch_siteName != '' and sch_siteName != 0 ">
+          AND  a.minutes_site_ser = #{sch_siteName}
+    </if>
+    <if test="sch_userId != null and sch_userId != '' ">
+          AND user_id = #{sch_userId}
+    </if>
+    <if test="sch_userName != null and sch_userName != '' ">
+          AND user_name like CONCAT('%', #{sch_userName}, '%')
+    </if>
+    <if test="sch_right != null and sch_right != '' ">
+          AND role_type = #{sch_right}
+    </if>
+    <if test="sch_useYn != null and sch_useYn != '' ">
+          AND user_use_yn = #{sch_useYn}
+    </if>
+    <if test="sch_lastLogin!= null and sch_lastLogin != '' ">
+          AND user_last_login_dt = #{sch_lastLogin}
+    </if>
+    </select>
+
+
+    <!-- 사용자 전체 리스트. 검색 조건 적용. -->
+    <select id="getUserList" parameterType="userVO" resultType="userDTO">
+        SELECT  a.minutes_user_ser,
+                a.minutes_site_ser,
+                a.user_id,
+                a.user_name,
+                a.user_use_yn,
+                a.cellphone_num,
+                a.user_last_login_dt,
+                a.create_time,
+                a.update_time,
+                b.role_desc as user_type,
+                c.minutes_site_ser,
+                c.site_name
+        FROM
+            MINUTES_USER a
+            , MINUTES_ROLE b
+            , MINUTES_SITE c
+        WHERE a.user_type = b.role_ser
+          AND a.minutes_site_ser = c.minutes_site_ser
+          AND b.use_yn ='Y'
+    <if test="sch_siteName != null and sch_siteName != '' and sch_siteName != 0 ">
+          AND a.minutes_site_ser = #{sch_siteName}
+    </if>
+    <if test="sch_userId != null and sch_userId != '' ">
+          AND a.user_id = #{sch_userId}
+    </if>
+    <if test="sch_userName != null and sch_userName != '' ">
+          AND a.user_name like CONCAT('%', #{sch_userName}, '%')
+    </if>
+    <if test="sch_right != null and sch_right != '' ">
+          AND b.role_type = #{sch_right}
+    </if>
+    <if test="sch_useYn != null and sch_useYn != '' ">
+          AND a.user_use_yn = #{sch_useYn}
+    </if>
+    <if test="sch_lastLogin!= null and sch_lastLogin != '' ">
+          AND a.user_last_login_dt = #{sch_lastLogin}
+    </if>
+        ORDER BY a.user_last_login_dt DESC
+        LIMIT ${startRow},  ${pageInitPerPage}
+    </select>
+
+
+
+    <!-- 사용자 정보 수정. 사용자 PK번호로(minutes_user_ser) 사용자 정보 select -->
+    <select id="getUserInfoByUserSer" parameterType="userVO" resultType="userDTO">
+         select a.minutes_user_ser,
+                a.minutes_site_ser,
+                a.user_id,
+                a.user_pw,
+                a.user_name,
+                a.user_use_yn,
+                a.cellphone_num,
+                a.user_last_login_dt,
+                a.create_time,
+                a.update_time,
+                b.role_type as user_type,
+                c.minutes_site_ser,
+                c.site_name
+         FROM MINUTES_USER a
+              , MINUTES_ROLE b
+              , MINUTES_SITE c
+          WHERE a.user_type = b.role_ser
+                AND a.minutes_site_ser = c.minutes_site_ser
+                AND a.minutes_user_ser = #{unum}
+
+    </select>
+
+    <select id="getUserByName" parameterType="userVO" resultType="userDTO">
+        select a.minutes_user_ser,
+                a.minutes_site_ser,
+                a.user_id,
+                a.user_pw,
+                a.user_name,
+                a.user_use_yn,
+                a.cellphone_num,
+                a.user_last_login_dt,
+                a.create_time,
+                a.update_time,
+                b.role_type as user_type,
+                c.minutes_site_ser,
+                c.site_name
+        FROM
+            MINUTES_USER a
+            , MINUTES_ROLE b
+            , MINUTES_SITE c
+        WHERE
+            a.user_type = b.role_ser
+            AND a.minutes_site_ser = c.minutes_site_ser
+            AND a.user_id =  #{sch_userId}
+    </select>
+
+    <select id="checkUserByName" parameterType="userVO" resultType="userDTO">
+        select a.minutes_user_ser,
+        a.minutes_site_ser,
+        a.user_id,
+        a.user_pw,
+        a.user_name,
+        a.user_use_yn,
+        a.cellphone_num,
+        a.user_last_login_dt,
+        a.create_time,
+        a.update_time,
+        b.role_type as user_type,
+        c.minutes_site_ser,
+        c.site_name
+        FROM
+        MINUTES_USER a
+        , MINUTES_ROLE b
+        , MINUTES_SITE c
+        WHERE a.user_type = b.role_ser
+        AND a.minutes_site_ser = c.minutes_site_ser
+        AND a.user_id =  #{add_userId}
+        <if test ='!add_userRight.equals("1")'>
+            <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(add_siteName)">
+                AND a.minutes_site_ser = #{add_siteName}
+            </if>
+        </if>
+    </select>
+
+
+    <!-- 사용가 추가 저장 -->
+    <update id="addUserSave" parameterType="userVO">
+        INSERT INTO MINUTES_USER(
+            minutes_site_ser
+            , user_id
+            , user_pw
+            , user_name
+            ,cellphone_num
+            , user_type
+            , user_use_yn
+            , create_user
+            , create_time
+            , update_user
+            , update_time
+            ,user_last_login_dt
+        ) VALUES (
+            #{add_siteName}
+            , #{add_userId}
+            , #{add_password}
+            , #{add_userName}
+            , #{add_cellphone}
+            , #{add_userRight}
+            , #{add_useYn}
+            , #{add_userId}
+            , current_time()
+            , #{add_userId}
+            , current_time()
+            , current_time()
+        )
+    </update>
+
+
+    <!-- 사용자 정보 수정 저장 -->
+    <update id="modifyUserSave" parameterType="userVO">
+        UPDATE MINUTES_USER
+        SET update_time = current_time()
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(modi_siteName)">
+            ,minutes_site_ser = #{modi_siteName}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(modi_password)">
+            , user_pw = #{modi_password}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(modi_userName)">
+            , user_name = #{modi_userName}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(modi_cellphone)">
+            , cellphone_num = #{modi_cellphone}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(modi_userRight)">
+            , user_type = #{modi_userRight}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(modi_useYn)">
+            , user_use_yn = #{modi_useYn}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(modi_userId)">
+            , update_user = #{modi_userId}
+        </if>
+        WHERE minutes_user_ser = ${unum}
+    </update>
+
+    <delete id="delUsers" parameterType="hashMap">
+
+        delete from MINUTES_USER
+        WHERE minutes_user_ser IN
+        <foreach item="item" collection="userList" index="index" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+
+    </delete>
+
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

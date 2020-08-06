@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ai.maum.biz.cams.mapper.ManagerMapper">
+
+    <!-- 직원관리.리스트 전체 게시물 수. 검색 조건 적용 -->
+    <select id="getEmpListAllCount" parameterType="frontMngVO" resultType="Integer">
+        SELECT count(*)
+        FROM
+            MINUTES_EMPLOYEE a
+            , MINUTES_SITE b
+        WHERE
+            a.minutes_site_ser = b.minutes_site_ser
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmptyZero(sch_siteName)">
+            AND a.minutes_site_ser = #{sch_siteName}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_empNo)">
+            AND a.minutes_employee_ser = #{sch_empNo}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_empName)">
+            AND a.name LIKE CONCAT('%', #{sch_empName}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_part)">
+            AND a.part = #{sch_part}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_posi)">
+            AND a.position = #{sch_posi}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_useYn)">
+            AND a.useYn = #{sch_useYn}
+        </if>
+    </select>
+
+
+    <!-- 직원관리.직원 전체 리스트. 검색 조건 적용. -->
+    <select id="getEmpList" parameterType="frontMngVO" resultType="minutesEmployeeDTO">
+        SELECT
+            a.*
+            , b.site_name
+            , x.CODE_VALUE desc_position
+            , y.CODE_VALUE desc_part
+        FROM
+            MINUTES_EMPLOYEE a
+            , MINUTES_SITE b
+            , ( select code_two, code_value from COMMON_CODE where code_one = 'CD003') x
+            , ( select code_two, code_value from COMMON_CODE where code_one = 'CD002') y
+        WHERE
+            a.minutes_site_ser = b.minutes_site_ser
+            AND x.code_two = a.part
+            AND y.code_two = a.position
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmptyZero(sch_siteName)">
+            AND a.minutes_site_ser = #{sch_siteName}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_empNo)">
+            AND a.minutes_employee_ser = #{sch_empNo}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_empName)">
+            AND a.name LIKE CONCAT('%', #{sch_empName}, '%')
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_part)">
+            AND a.part = #{sch_part}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_posi)">
+            AND a.position = #{sch_posi}
+        </if>
+        <if test="@ai.maum.biz.cams.utils.CommonUtils@strEmpty(sch_useYn)">
+            AND a.useYn = #{sch_useYn}
+        </if>
+        ORDER BY a.name ASC
+        LIMIT ${startRow}, ${pageInitPerPage}
+    </select>
+
+
+    <!-- 직원관리.직원 추가 저장 -->
+    <update id="doEmpAddSave" parameterType="frontMngVO">
+        INSERT INTO MINUTES_EMPLOYEE(
+            name
+            , part
+            , position
+            , minutes_site_ser
+            , create_user
+        ) VALUES (
+            #{add_name}
+            , #{add_part}
+            , #{add_posi}
+            , #{add_siteName}
+            , #{create_user}
+        )
+    </update>
+
+
+    <!-- 직원관리.직원 정보 수정. 직원 PK번호로(minutes_emp_ser) 직원 정보 select -->
+    <select id="getEmpInfoByEmpSer" parameterType="frontMngVO" resultType="minutesEmployeeDTO">
+        SELECT
+            a.*
+            , b.site_name
+            , x.CODE_VALUE desc_position
+            , y.CODE_VALUE desc_part
+        FROM
+            MINUTES_EMPLOYEE a
+            , MINUTES_SITE b
+            , ( select code_two, code_value from COMMON_CODE where code_one = 'CD003' ) x
+            , ( select code_two, code_value from COMMON_CODE where code_one = 'CD002' ) y
+        WHERE
+            a.minutes_site_ser = b.minutes_site_ser
+            AND x.code_two = a.part
+            AND y.code_two = a.position
+            AND a.minutes_employee_ser = #{emp_ser}
+    </select>
+
+
+    <!-- 직원관리.직원 정보 수정 저장 -->
+    <update id="doEmpModifySave" parameterType="frontMngVO">
+        UPDATE MINUTES_EMPLOYEE
+        SET
+            minutes_site_ser = #{modi_siteName}
+            , name = #{modi_name}
+            , part = #{modi_part}
+            , position = #{modi_posi}
+            , useYn = #{modi_useYn}
+            , update_user = #{update_user}
+            , update_time = current_time()
+        WHERE
+            minutes_employee_ser = ${esnum}
+    </update>
+
+
+    <!-- 시스템관리.서버모니터링 전체 리스트 -->
+    <select id="getSvrList" parameterType="frontMngVO" resultType="sttServerStatus">
+        SELECT *
+        FROM STT_SERVER_STATUS
+        ORDER by stt_server_status_ser ASC
+    </select>
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
